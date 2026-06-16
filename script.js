@@ -50,33 +50,9 @@ window.addEventListener('scroll', () => {
     });
 });
 
-// Products Slider
+// Products Slider - Running Text Style
 const productsContainer = document.querySelector('.products-container');
 const productsSlider = document.querySelector('.products-slider');
-const prevBtn = productsSlider.querySelector('.prev-btn');
-const nextBtn = productsSlider.querySelector('.next-btn');
-
-let productsScrollPosition = 0;
-const productsScrollAmount = 300;
-
-if (prevBtn && nextBtn) {
-    prevBtn.addEventListener('click', () => {
-        productsScrollPosition -= productsScrollAmount;
-        if (productsScrollPosition < 0) {
-            productsScrollPosition = 0;
-        }
-        productsContainer.style.transform = `translateX(-${productsScrollPosition}px)`;
-    });
-
-    nextBtn.addEventListener('click', () => {
-        const maxScroll = productsContainer.scrollWidth - productsContainer.clientWidth;
-        productsScrollPosition += productsScrollAmount;
-        if (productsScrollPosition > maxScroll) {
-            productsScrollPosition = maxScroll;
-        }
-        productsContainer.style.transform = `translateX(-${productsScrollPosition}px)`;
-    });
-}
 
 // Gallery Slider
 const galleryContainer = document.querySelector('.gallery-container');
@@ -140,14 +116,12 @@ function handleSwipe(container, scrollPosition, scrollAmount) {
 
     if (Math.abs(diff) > swipeThreshold) {
         if (diff > 0) {
-            // Swipe left - next
             scrollPosition += scrollAmount;
             const maxScroll = container.scrollWidth - container.clientWidth;
             if (scrollPosition > maxScroll) {
                 scrollPosition = maxScroll;
             }
         } else {
-            // Swipe right - previous
             scrollPosition -= scrollAmount;
             if (scrollPosition < 0) {
                 scrollPosition = 0;
@@ -228,83 +202,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Auto-scroll for products (optional)
-let autoScrollInterval;
-
-function startAutoScroll() {
-    autoScrollInterval = setInterval(() => {
-        if (productsContainer) {
-            const maxScroll = productsContainer.scrollWidth - productsContainer.clientWidth;
-            productsScrollPosition += productsScrollAmount;
-            
-            if (productsScrollPosition >= maxScroll) {
-                productsScrollPosition = 0;
-            }
-            
-            productsContainer.style.transform = `translateX(-${productsScrollPosition}px)`;
-        }
-    }, 5000); // Auto-scroll every 5 seconds
-}
-
-function stopAutoScroll() {
-    clearInterval(autoScrollInterval);
-}
-
-// Start auto-scroll when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    startAutoScroll();
-    
-    // Stop auto-scroll when user interacts
-    if (productsSlider) {
-        productsSlider.addEventListener('mouseenter', stopAutoScroll);
-        productsSlider.addEventListener('mouseleave', startAutoScroll);
-        productsSlider.addEventListener('touchstart', stopAutoScroll);
-        productsSlider.addEventListener('touchend', startAutoScroll);
-    }
-});
-
 // Loading animation
 window.addEventListener('load', () => {
     document.body.style.opacity = '0';
     document.body.style.transition = 'opacity 0.5s ease';
-    
+
     setTimeout(() => {
         document.body.style.opacity = '1';
     }, 100);
 });
 
-// Produk slider Madina Tour and Travel
-const productSliderCards = document.querySelectorAll('.product-card');
-const productPrevBtn = document.querySelector('.prev-btn');
-const productNextBtn = document.querySelector('.next-btn');
-let productCurrentIndex = 0;
-const productVisibleCount = 3;
-const productTotal = productSliderCards.length;
+// Infinite Running Text Products Slider
+(function () {
+    if (!productsContainer || !productsSlider) return;
 
-function updateProductSlider() {
-    const cardWidth = productSliderCards[0].offsetWidth + 32; // 32px margin
-    const maxIndex = productTotal - productVisibleCount;
-    if (productCurrentIndex < 0) productCurrentIndex = 0;
-    if (productCurrentIndex > maxIndex) productCurrentIndex = maxIndex;
-    productsContainer.style.transform = `translateX(-${productCurrentIndex * cardWidth}px)`;
-}
+    // Clone cards untuk seamless loop
+    const originalCards = Array.from(productsContainer.querySelectorAll('.product-card'));
+    originalCards.forEach(card => productsContainer.appendChild(card.cloneNode(true)));
 
-function showProductNext() {
-    productCurrentIndex++;
-    if (productCurrentIndex > productTotal - productVisibleCount) productCurrentIndex = 0;
-    updateProductSlider();
-}
+    // Hapus transition CSS agar animasi dihandle RAF
+    productsContainer.style.transition = 'none';
 
-function showProductPrev() {
-    productCurrentIndex--;
-    if (productCurrentIndex < 0) productCurrentIndex = productTotal - productVisibleCount;
-    updateProductSlider();
-}
+    const speed = 1; // pixel per frame
+    let position = 0;
+    let paused = false;
+    let rafId;
 
-productPrevBtn.addEventListener('click', showProductPrev);
-productNextBtn.addEventListener('click', showProductNext);
+    function getTotalWidth() {
+        // Lebar semua card original (setengah dari container karena sudah diklon)
+        return productsContainer.scrollWidth / 2;
+    }
 
-updateProductSlider();
+    function animate() {
+        if (!paused) {
+            position += speed;
+            if (position >= getTotalWidth()) position = 0;
+            productsContainer.style.transform = `translateX(-${position}px)`;
+        }
+        rafId = requestAnimationFrame(animate);
+    }
 
-// Auto slide setiap 3 detik
-setInterval(showProductNext, 3000); 
+    // Pause saat hover
+    productsSlider.addEventListener('mouseenter', () => { paused = true; });
+    productsSlider.addEventListener('mouseleave', () => { paused = false; });
+
+    // Tombol next: loncat 1 card ke depan
+    const nextBtn = productsSlider.querySelector('.next-btn');
+    const prevBtn = productsSlider.querySelector('.prev-btn');
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+        const card = productsContainer.querySelector('.product-card');
+        const cardWidth = card.offsetWidth + parseFloat(getComputedStyle(card).marginLeft) + parseFloat(getComputedStyle(card).marginRight);
+        position = (position + cardWidth) % getTotalWidth();
+    });
+    if (prevBtn) prevBtn.addEventListener('click', () => {
+        const card = productsContainer.querySelector('.product-card');
+        const cardWidth = card.offsetWidth + parseFloat(getComputedStyle(card).marginLeft) + parseFloat(getComputedStyle(card).marginRight);
+        position = Math.max(0, position - cardWidth);
+    });
+
+    animate();
+})();
